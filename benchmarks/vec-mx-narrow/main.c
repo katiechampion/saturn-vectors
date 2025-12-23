@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include "../vec-mx-fma/rvv_mx.h"
+#include "../common/rvv_mx.h"
 
 extern size_t N;
 size_t avl;
@@ -34,7 +34,8 @@ size_t vl;
 		VSETVLI_ALTFMT(vl, avl, wsew, LMUL_M2, walt); /* vsetvli */ \
 		asm volatile(wvle " v0, (%0)" : : "r"(name ## _)); /* load A */ \
         VSETVLI_ALTFMT_X0(vl, nsew, LMUL_M1, nalt); /* vsetvli */ \
-		asm volatile("vfncvt.f.f.w v24, v0"); /* operation */ \
+		if (nsew == SEW_E8) VFNCVTBF16_F_F_W("x24", "x0"); /* operation */ \
+		else asm volatile("vfncvt.f.f.w v24, v0"); /* operation */ \
 		asm volatile(nvle " v8, (%0)" : : "r"(name ## _out_)); /* load result */ \
 		asm volatile("vmsne.vv v16, v24, v8"); /* compare */ \
 		asm volatile("vfirst.m %0, v16" : "=r"(name ## _neq)); /* extract comparison */ \

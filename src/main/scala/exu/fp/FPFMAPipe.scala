@@ -290,7 +290,7 @@ class SegmentedFMAPipe(depth: Int, buildFP64: Boolean, mxFPFMA: Boolean)(implici
   }
 
   fma_types.foldLeft(Map(
-    FType.D -> 0, FType.S -> 0, FType.H -> 0
+    FType.D -> 0, FType.S -> 0, FType.H -> 0, FType.BF16 -> 0, FType.E5M3 -> 0
   )) { (counts, fma_type) => {
     val usedFor = ftype_used_for(fma_type)
     val fma_valid = usedFor.map(valid_signals(_)).foldLeft(0.U)(_|_).asBool

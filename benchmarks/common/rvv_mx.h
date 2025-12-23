@@ -16,3 +16,6 @@
 
 #define VSETVLI_ALTFMT_X0(avl, sew, lmul, alt) \
 	asm volatile(".insn i 0x57, 0x7, zero, %0, 0b000" #alt "000" sew lmul :: "r"(avl))
+
+#define VFNCVTBF16_F_F_W(rd, vs2) \
+	asm volatile(".insn r 0x57, 0x1, 0x25, " rd ", x29, " vs2)

@@ -34,6 +34,8 @@ object VectorParams {
     vrfBanking = 8,
     useOpu = true,
     useBDot = true,
+    useMxFPFMA = true,
+    useMxConversion = true,
     issStructure = VectorIssueStructure.Shared
   )
 
@@ -174,7 +176,7 @@ object VXFunctionalUnitGroups {
   )
 
   def allFPFUs(fmaPipeDepth: Int, useScalarFPFMA: Boolean, elementwiseFP64: Boolean, segmentedFPFMA: Boolean, useMxFPFMA: Boolean, useMxConversion: Boolean) = (
-    (if (useScalarFPFMA) sharedFPFMA(fmaPipeDepth) else fpFMA(fmaPipeDepth, segmentedFPFMA, elementwiseFP64, useMxFPFMA)) ++
+    (if (useScalarFPFMA) sharedFPFMA(fmaPipeDepth) else fpFMA(fmaPipeDepth, elementwiseFP64, segmentedFPFMA, useMxFPFMA)) ++
     fpMisc(useMxConversion)
   )
 }
@@ -394,6 +396,13 @@ case class VectorParams(
     saturn.insns.QBDOTUA.VV,
     saturn.insns.QBDOTSA.VV)
   def supported_ex_insns = issStructure.generate(this).map(_.insns).flatten ++ (if (useOpu) opuInsns else Nil) ++ (if (useBDot) bdotInsns else Nil)
+
+  def vExts = 
+    (if (useMxConversion) Seq("zvfofp8min", "zfbfmin", "zvfbfmin", "zvfbfa") else Seq()) ++
+    (if (useMxFPFMA) Seq() else Seq())
+    .foldLeft(Seq()) { (acc, e) =>
+      if (!acc.contains(e)) acc :+ e else acc
+    }
 
   require(dLen >= 64, "dLen must be >= 64")
   require((dLen & (dLen - 1)) == 0, "dLen must be power of 2")
