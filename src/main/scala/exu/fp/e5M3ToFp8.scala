@@ -55,7 +55,13 @@ object saturateE5M2 {
 	def apply(in: UInt, saturate: Bool) = {
 		val sign = in(7)
 		val rest = in(6, 0)
-		Mux(saturate && rest === "b1111100".U(7.W), sign ## "b1111011".U(7.W), in)
+		Mux(saturate && rest === "b1111100".U(7.W), // Saturate Inf
+			sign ## "b1111011".U(7.W),
+			Mux(rest(6, 2) === "b11111".U(5.W) && rest(1, 0) =/= "b00".U(2.W), // Use canonical NaN
+				"h7F".U(8.W),
+				in
+			)
+		)
 	}
 }
 
@@ -71,11 +77,14 @@ object assembleOFPE4M3 {
 		val overflow = expE5M3 === "b10111".U(5.W) // Values that overflow to infinity for IEEE E4M3 but not OFP8 E4M3
 		val possibleInf = expE5M3(4, 3) === "b11".U(2.W) || sigE5M3 === "b111".U(3.W) // True inf check for values in the IEEE E4M3 inf range
 		val outValue = Mux(special || overflow, // Possible NaN or Inf
-			sign ## Mux(special && sigE5M3 =/= "b000".U(3.W), // NaN
-				"b1111111".U(7.W),
+			Mux(special && sigE5M3 =/= "b000".U(3.W), // NaN
+				"h7F".U(8.W),
 				Mux(possibleInf, // Inf
-					"b111111".U(6.W) ## !saturate,
-					"b1111".U(4.W) ## sigE5M3
+					Mux(saturate, // Saturate Inf
+						sign ## "b1111110".U(7.W),
+						"h7F".U(8.W)
+					),
+					sign ## "b1111".U(4.W) ## sigE5M3
 				)
 			),
 			ieeeE4M3

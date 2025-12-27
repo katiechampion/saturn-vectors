@@ -60,15 +60,15 @@ size_t vl;
 
 TEST_DATA(uint32_t, fp16, uint16_t)
 TEST_DATA(uint32_t, bf16, uint16_t)
-TEST_DATA(uint16_t, ofp8e5m2, uint8_t)
-TEST_DATA(uint16_t, ofp8e4m3, uint8_t)
+TEST_DATA(uint16_t, e5m2, uint8_t)
+TEST_DATA(uint16_t, e4m3, uint8_t)
 
 int main() {
 
     TEST(fp16, SEW_E32, SEW_E16, 0, 0, "vle32.v", "vle16.v")
     TEST(bf16, SEW_E32, SEW_E16, 0, 1, "vle32.v", "vle16.v")
-    TEST(ofp8e5m2, SEW_E16, SEW_E8, 1, 1, "vle16.v", "vle8.v")
-    TEST(ofp8e4m3, SEW_E16, SEW_E8, 1, 0, "vle16.v", "vle8.v")
+    TEST(e5m2, SEW_E16, SEW_E8, 1, 1, "vle16.v", "vle8.v")
+    TEST(e4m3, SEW_E16, SEW_E8, 1, 0, "vle16.v", "vle8.v")
 
     printf("All tests passed\n");
 
