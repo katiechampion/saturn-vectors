@@ -127,7 +127,17 @@
 #define VFNCVTBF16_F_F_W(rd, vs2) \
 	asm volatile(".insn r 0x57, 0x1, 0x25, " rd ", x29, " vs2)
 
+#define VFWCVTBF16_F_F_V(rd, vs2) \
+	asm volatile(".insn r 0x57, 0x1, 0x25, " rd ", x13, " vs2)
+
+#define VFNCVTBF16_SAT_F_F_W(rd, vs2) \
+	asm volatile(".insn r 0x57, 0x1, 0x25, " rd ", x31, " vs2)
+
 // scalar conversion
 
 #define FCVT_BF16_S(fd, fs1) \
 	asm volatile(".insn r 0x53, 0x0, 0x22, " fd ", " fs1 ", x8")
+
+#define FCVT_S_BF16(fd, fs1) \
+	asm volatile(".insn r 0x53, 0x0, 0x20, " fd ", " fs1 ", x6")
+

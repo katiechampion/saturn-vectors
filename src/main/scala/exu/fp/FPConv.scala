@@ -36,6 +36,7 @@ class FPConvBlock(mxConversion: Boolean)(implicit p: Parameters) extends CoreMod
     val truncating = Input(Bool())
     val rto = Input(Bool())
     val in_altfmt = Input(Bool())
+    val sat = Input(Bool())
 
     val out = Output(UInt(64.W))
     val exc = Output(Vec(8, UInt(FPConstants.FLAGS_SZ.W)))
@@ -104,6 +105,7 @@ class FPConvBlock(mxConversion: Boolean)(implicit p: Parameters) extends CoreMod
   val s1_widen = RegEnable(io.widen, io.valid)
   val s1_narrow = RegEnable(io.narrow, io.valid)
   val s1_valid = RegNext(io.valid, false.B)
+  val s1_sat = RegNext(io.sat, false.B)
 
   d2i(0).io.outW := (s1_out_eew === 3.U) ## (s1_out_eew === 2.U) ## (s1_out_eew === 1.U)
   s2i(0).io.outW := (s1_out_eew === 2.U) ## (s1_out_eew === 1.U)
@@ -220,8 +222,8 @@ class FPConvBlock(mxConversion: Boolean)(implicit p: Parameters) extends CoreMod
   val h2s_out = h2s.map(f => RegEnable(FType.S.ieee(f.io.out), s1_valid))
   val s2d_out = s2d.map(f => RegEnable(FType.D.ieee(f.io.out), s1_valid))
 
-  val bf162e5m2_out = bf162e5m2.map(f => RegEnable(saturateE5M2(FType.E5M2.ieee(f.io.out), false.B /*s1_widen*/), s1_valid))
-  val bf162e4m3_out = bf162e5m3.zip(bf162e4m3).map(f => RegEnable(assembleOFPE4M3(FType.E5M3.ieee(f._1.io.out), FType.E4M3.ieee(f._2.io.out), false.B /*s1_widen*/), s1_valid))
+  val bf162e5m2_out = bf162e5m2.map(f => RegEnable(saturateE5M2(FType.E5M2.ieee(f.io.out), s1_sat), s1_valid))
+  val bf162e4m3_out = bf162e5m3.zip(bf162e4m3).map(f => RegEnable(assembleOFPE4M3(FType.E5M3.ieee(f._1.io.out), FType.E4M3.ieee(f._2.io.out), s1_sat), s1_valid))
   val s2bf16_out = s2bf16.map(f => RegEnable(FType.BF16.ieee(f.io.out), s1_valid))
   val s2h_out = s2h.map(f => RegEnable(FType.H.ieee(f.io.out), s1_valid))
   val d2s_out = d2s.map(f => RegEnable(FType.S.ieee(f.io.out), s1_valid))
@@ -323,11 +325,12 @@ class FPConvPipe(mxConversion: Boolean)(implicit p: Parameters) extends Pipeline
   val ctrl_widen = rs1(3)
   val ctrl_narrow = rs1(4)
   val ctrl_signed = rs1(0)
+  val ctrl_bf16 = rs1(3, 2) === "b11".U && rs1(0)
   val ctrl_i2f = !rs1(2) && rs1(1)
-  val ctrl_f2i = (!rs1(2) && !rs1(1)) || (rs1(2) && rs1(1))
-  val ctrl_bf16 = rs1(3, 0) === "b1101".U
+  val ctrl_f2i = ((!rs1(2) && !rs1(1)) || (rs1(2) && rs1(1))) && !ctrl_bf16
   val ctrl_truncating = rs1(2) && rs1(1)
   val ctrl_round_to_odd = rs1(0) && !ctrl_bf16
+  val ctrl_sat = ctrl_bf16 && rs1(1)
 
   val rvs2_data = io.pipe(0).bits.rvs2_data
   val vd_eew = io.pipe(0).bits.vd_eew
@@ -355,6 +358,7 @@ class FPConvPipe(mxConversion: Boolean)(implicit p: Parameters) extends Pipeline
     c.io.f2i := ctrl_f2i
     c.io.truncating := ctrl_truncating
     c.io.rto := ctrl_round_to_odd
+    c.io.sat := ctrl_sat
   }
 
   val out = Wire(UInt(dLen.W))
