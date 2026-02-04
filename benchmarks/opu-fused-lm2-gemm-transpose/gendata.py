@@ -29,9 +29,9 @@ else:
     if args.ndim:
         n_dim = args.ndim
 
-a_matrix = np.arange(k_dim*m_dim).reshape(k_dim, m_dim).astype(np.int8)
-b_matrix = np.arange(k_dim*n_dim).reshape(k_dim, n_dim).astype(np.int8)
-c_bias = np.arange(n_dim).astype(np.int32) + 1
+a_matrix = np.random.randint(-128, 127, k_dim*m_dim).reshape(k_dim, m_dim).astype(np.int8)
+b_matrix = np.random.randint(-128, 127, k_dim*n_dim).reshape(k_dim, n_dim).astype(np.int8)
+c_bias = np.random.randint(-128, 127, n_dim).astype(np.int32)
 c_matrix = np.matmul(a_matrix.T.astype(np.int32), b_matrix.astype(np.int32)) + c_bias[None, :]
 c_matrix = c_matrix.T
 
