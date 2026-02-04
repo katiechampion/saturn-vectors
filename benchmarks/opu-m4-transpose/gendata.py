@@ -3,8 +3,8 @@
 import numpy as np
 import argparse
 
-m_dim = 32
-n_dim = 32
+m_dim = 128
+n_dim = 128
 
 parser = argparse.ArgumentParser(description='A script to generate input data for an SGEMM kernel.')
 
