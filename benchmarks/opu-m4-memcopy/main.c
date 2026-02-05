@@ -44,11 +44,11 @@ int main(void) {
   for (size_t m = M_DIM; m <= M_DIM; m+=maxvl) {
     for (size_t n = N_DIM; n <= N_DIM; n+=maxvl) {
         printf("Testing M=%ld, N=%ld\n", m, n);
-        i32_bme_m4_transpose(c_in, c_opu, m, n);
+        i32_bme_memcopy(c_in, c_opu, m, n);
         
         // verify against reference
         int r = 0;
-        r = i32_compare(c_opu, verify_data, n, m);
+        r = i32_compare(c_opu, c_in, n, m);
         if (r) {
             printf("FAILURE; M, N = %ld %ld\n", m, n);
             exit(1);

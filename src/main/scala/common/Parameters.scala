@@ -27,13 +27,11 @@ object VectorParams {
     vxissqEntries = 3,
     vpissqEntries = 1,
     vatSz = 5,
+    vrfBanking = 4,
     useSegmentedIMul = true,
     doubleBufferSegments = true,
     useScalarFPFMA = false,
     useSegmentedFPFMA = true,
-    vrfBanking = 8,
-    useOpu = true,
-    useBDot = true,
     useMxFPFMA = true,
     useMxConversion = true,
     issStructure = VectorIssueStructure.Shared
@@ -56,11 +54,15 @@ object VectorParams {
     vsiqEntries = 6
   )
 
+  def bdotParams = genParams.copy(
+    vrfBanking = 8,
+    useBDot = true
+  )
+
   def opuParams = genParams.copy(
     vliqEntries = 8, // beef this up since OPU tends to be used with LMUL=1
     vlissqEntries = 6,
     useOpu = true,
-    useElementwiseFP64 = false,
     useMxFPFMA = true,
     useMxConversion = true
   )

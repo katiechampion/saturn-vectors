@@ -417,9 +417,9 @@ class VectorBackend(implicit p: Parameters) extends CoreModule()(p) with HasVect
     vbdot.io.op.bits := vbs.get.io.iss.bits
     vbdot.io.rvs1_data := vrf.io.vxs(vbs_index).rvs1.resp
     vbdot.io.rvs2_data := vrf.io.vxs(vbs_index).rvs2.resp
-    vrf.io.batch_read_vs2 := vbs.get.io.batch_read_vs2
-    vrf.io.batch_vs2_eg := vbs.get.io.rvs2.bits.eg
-    vbdot.io.batch_vs2_data := vrf.io.batch_vs2_data
+    vrf.io.batch_read_vs2.get := vbs.get.io.batch_read_vs2
+    vrf.io.batch_vs2_eg.get := vbs.get.io.rvs2.bits.eg
+    vbdot.io.batch_vs2_data := vrf.io.batch_vs2_data.get
     vbdot.io.rvd_data := vrf.io.vxs(vbs_index).rvd.resp
     vbdot.io.rvm_data := vrf.io.vxs(vbs_index).rvm.resp
   }
