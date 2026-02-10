@@ -18,7 +18,7 @@ size_t vl;
     extern otype name ## _out[] __attribute__((aligned(64)));;
 
 #define TEST_VECTOR_OUTER(name, isew, osew, ealt, ivle, ovse) \
-    printf("Testing " #name "\n"); \
+    printf("Testing " #name " (vector outer product)\n"); \
     avl = N; \
     { \
         size_t n = 0; \
@@ -61,7 +61,12 @@ size_t vl;
             avl -= vl; \
             n += vl; \
         } \
-    } \
+    }
+
+#define CLEAR_OUT(name, osew) \
+    memset(name ## _out, 0, M * N * osew);
+
+#define CHECK_TEST(name) \
     for (size_t m = 0; m < M; m ++) { \
         for (size_t n = 0; n < N; n ++) { \
             uint64_t expected = name ## _c[n + (m * N)]; \
@@ -69,6 +74,7 @@ size_t vl;
             if (expected != result) { \
                 printf("Test failed\n"); \
                 printf("m = %d, n = %d, exp = %x, res = %x\n", m, n, expected, result); \
+                exit(1); \
             } \
         } \
     }
@@ -79,7 +85,9 @@ TEST_DATA(uint8_t, e5m2, uint16_t)
 int main() {
 
     TEST_VECTOR_OUTER(e4m3, SEW_E8, SEW_E16, 0, "vle8.v", "vse16.v")
+    CHECK_TEST(e4m3)
     TEST_VECTOR_OUTER(e5m2, SEW_E8, SEW_E16, 1, "vle8.v", "vse16.v")
+    CHECK_TEST(e5m2)
 
     printf("All tests passed\n");
 

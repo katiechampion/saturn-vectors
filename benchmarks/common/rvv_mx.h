@@ -114,7 +114,12 @@
 #define F30 "x30"
 #define F31 "x31"
 
-// VSETVLI ALTFMT
+// debug
+
+#define STALL(n) \
+	for (int __i = 0; __i < n; __i ++) { asm volatile("nop"); }
+
+// vsetvli
 
 #define VSETVLI_ALTFMT(vl, avl, sew, lmul, alt) \
 	asm volatile(".insn i 0x57, 0x7, %0, %1, 0b000" #alt "000" sew lmul : "=r"(vl) : "r"(avl))
@@ -141,3 +146,32 @@
 #define FCVT_S_BF16(fd, fs1) \
 	asm volatile(".insn r 0x53, 0x0, 0x20, " fd ", " fs1 ", x6")
 
+// bdot
+
+#define VDOTSET_VV(rd, as) \
+	asm volatile(".insn r 0x77, 0x0, 0x00, " rd ", x0, " as)
+#define VDOTSETZERO_VV(as) \
+	asm volatile(".insn r 0x77, 0x0, 0x00, x0, x1, " as)
+#define VDOTSETZEROBC_VV() \
+	asm volatile(".insn r 0x77, 0x0, 0x00, x0, x3, x0")
+#define VDOTWB_VV(rd, as) \
+	asm volatile(".insn r 0x77, 0x0, 0x02, " rd ", x0, " as)
+#define VQLDOTUA_VV(as, rs2, rs1) \
+	asm volatile(".insn r 0x77, 0x0, 0x4c, " as ", " rs1 ", " rs2)
+#define VQLDOTSA_VV(as, rs2, rs1) \
+	asm volatile(".insn r 0x77, 0x0, 0x4e, " as ", " rs1 ", " rs2)
+#define VQBDOTUA_VV(as, rs2, rs1) \
+	asm volatile(".insn r 0x77, 0x0, 0x5c, " as ", " rs1 ", " rs2)
+#define VQBDOTSA_VV(as, rs2, rs1) \
+	asm volatile(".insn r 0x77, 0x0, 0x5e, " as ", " rs1 ", " rs2)
+
+// opu
+
+#define OPMVIN(md, vs2, rs1) \
+	asm volatile(".insn r 0x57, 0x6, 0x55, " md ", %0, " vs2 : : "r"(rs1));
+#define OPMVOUT(vd, ms2, rs1) \
+	asm volatile(".insn r 0x57, 0x6, 0x5d, " vd ", %0, " ms2 : : "r"(rs1));
+#define OPMVINBCAST(md, vs2) \
+	asm volatile(".insn r 0x57, 0x6, 0x59, " md ", x0, " vs2);
+#define OPMACC(md, vs2, vs1) \
+	asm volatile(".insn r 0x57, 0x2, 0x51, " md ", " vs1 ", " vs2);

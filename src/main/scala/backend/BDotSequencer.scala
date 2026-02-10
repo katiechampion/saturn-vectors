@@ -12,41 +12,6 @@ import saturn.insns._
 import scala.math._
 import saturn.exu._
 
-// class BDotCache(implicit p: Parameters) extends CoreModule with HasVectorParams {
-//   // This thing should probably use a Mem or something
-
-//   val io = IO(new Bundle {
-//     val valid = Output(UInt(8.W))
-//     val group = Output(UInt(2.W))
-
-//     val new_group = Input(UInt(2.W))
-//     val set_group = Input(Bool())
-
-//     val write_data = Input(UInt(vLen.W))
-//     val write_addr = Input(UInt(3.W))
-//     val write_en = Input(Bool())
-
-//     val read_data = Output(Vec(8, UInt(vLen.W)))
-//   })
-
-//   val valid = RegInit(VecInit(Seq.fill(8)(false.B)))
-//   val group = RegInit(0.U(2.W))
-//   when (io.set_group) {
-//     group := io.new_group
-//     valid.foreach { e => e := false.B }
-//   }
-//   io.valid := valid.asUInt
-
-//   for (i <- 0 to 7) {
-//     val register = Reg(UInt(vLen.W))
-//     io.read_data(i) := register
-//     when (io.write_en && io.write_addr === i.U) {
-//       register := io.write_data
-//       valid(i) := true.B
-//     }
-//   }
-// }
-
 class BDotSequencerIO(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) extends SequencerIO(new BDotSequencerControl) with HasVectorParams {
   val rvs1 = Decoupled(new VectorReadReq)
   val rvs2 = Decoupled(new VectorReadReq)
@@ -77,7 +42,7 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
   val set_acc_zero = Reg(Bool())
   val set_acc_bc = Reg(Bool())
   val writeback = RegInit(false.B)
-  val acc_sel = Reg(UInt(3.W))
+  val acc_sel = Reg(UInt(5.W))
 
   val wvd_mask = Reg(UInt(egsTotal.W))
   val rvs1_mask = Reg(UInt(egsTotal.W))
@@ -106,12 +71,12 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
   val elements_width = (dLen / 8).U >> in_eew
   val next_vl = Mux(vl >= elements_width, vl - elements_width, 0.U)
 
-  val tail = next_eg_idx === eg_idx_max
+  val tail = (next_eg_idx === eg_idx_max) && io.iss.fire
 
-  io.dis.ready := !busy /*(!valid || (tail && io.iss.fire))*/ && !io.dis_stall && io.iss.ready // TODO: Optimize
+  // TODO: Is acc_delay correct? Can this be optimized further?
+  // val tail_pipe = Pipe(io.iss.fire && tail, 0.U, acc_delay)
 
-  // TODO: Should be write_tail, or optimize better
-  val tail_pipe = Pipe(io.iss.fire && tail, 0.U, pipe_depth + acc_delay)
+  io.dis.ready := (!busy || tail) /*(!valid || (tail && io.iss.fire))*/ && !io.dis_stall && io.iss.ready // TODO: Optimize
 
   // New instruction
   when (io.dis.fire) {
@@ -154,7 +119,7 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
     in_eew := dis_inst.vconfig.vtype.vsew
     vl := dis_inst.vconfig.vl
 
-    acc_sel := Mux(dis_ctrl.bool(BDotSet) || dis_ctrl.bool(BDotWB), dis_inst.rs2, dis_inst.rd)(2, 0)
+    acc_sel := Mux(dis_ctrl.bool(BDotSet) || dis_ctrl.bool(BDotWB), dis_inst.rs2, dis_inst.rd)
     
     head := true.B
   } .elsewhen (io.iss.fire) {
@@ -162,10 +127,10 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
     head := false.B
   }
 
-  when (tail_pipe.valid) {
+  when (tail && !io.dis.fire) {
     busy := false.B
   }
-  io.tail := tail_pipe.valid
+  io.tail := tail
 
   io.vat := inst.vat
   io.seq_hazard.valid := busy // TODO: Make this chain well between instructions
@@ -222,6 +187,12 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
       eg_idx := 0.U
     }
   }
+
+  dontTouch(vs1_read_oh)
+  dontTouch(data_hazard)
+  dontTouch(io.rvs1.ready)
+  dontTouch(io.rvs2.ready)
+  dontTouch(io.rvd.ready)
 
   io.iss.valid := (valid &&
     !data_hazard &&

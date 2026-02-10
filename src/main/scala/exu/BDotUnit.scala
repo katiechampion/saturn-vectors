@@ -62,7 +62,7 @@ class BDotSequencerControl(implicit p: Parameters) extends CoreBundle()(p) with 
   val set_acc_zero = Input(Bool())
   val set_acc_bc = Input(Bool())
   val writeback = Input(Bool())
-  val acc_sel = Input(UInt(3.W))
+  val acc_sel = Input(UInt(5.W))
   val src_valid = Input(Bool())
   val vl = Input(UInt((1+log2Ceil(maxVLMax)).W))
 }
@@ -89,7 +89,7 @@ class BDotUnit(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) extends 
 
   val ready = RegInit(true.B)
 
-  val accumulator = Reg(Vec(8, Vec(8, UInt(64.W))))
+  val accumulator = Reg(Vec(32, Vec(8, UInt(64.W))))
 
   val int8_out = Wire(Vec(8, UInt(32.W)))
   val int8_out_en = Wire(Bool())
@@ -100,7 +100,8 @@ class BDotUnit(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) extends 
     int8_pipe.io.signed_b := io.op.bits.signed
     int8_pipe.io.in_a := io.rvs1_data
     int8_pipe.io.in_b := Mux(io.op.bits.batched, io.batch_vs2_data(i), if (i == 0) io.rvs2_data else 0.U)
-    int8_pipe.io.acc := accumulator(io.op.bits.acc_sel).asUInt((i + 1) * 64 - 32 - 1, i * 64)
+    val acc_sel_pipe = Pipe(io.op.fire, io.op.bits.acc_sel, pipe_depth)
+    int8_pipe.io.acc := accumulator(acc_sel_pipe.bits).asUInt((i + 1) * 64 - 32 - 1, i * 64)
     int8_pipe.io.vl := io.op.bits.vl
     int8_out(i) := int8_pipe.io.out
     if (i == 0) {
@@ -108,7 +109,7 @@ class BDotUnit(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) extends 
     }
   }
 
-  val ready_pipe = Pipe(io.op.fire && io.op.bits.src_valid, 0.U, acc_delay)
+  val ready_pipe = Pipe(io.op.fire && io.op.bits.src_valid, 0.U, acc_delay - 1)
 
   val acc_eidx = RegInit(0.U(3.W))
   val acc_write_eidx = RegInit(0.U(3.W))
@@ -124,12 +125,12 @@ class BDotUnit(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) extends 
   }
 
   when (io.op.fire) {
-    ready := !io.op.bits.src_valid
+    ready := !io.op.bits.src_valid || (acc_delay == 1).B
     when (io.op.bits.set_acc || io.op.bits.writeback) {
       acc_eidx := acc_eidx + Mux(io.op.bits.in_eew === 3.U, (dLen/64).U, (dLen/32).U)
     }
     when (io.op.bits.set_acc) {
-      for (x <- 0 until 8) {
+      for (x <- 0 until 32) {
         when (io.op.bits.acc_sel === x.U || io.op.bits.set_acc_bc) {
           when (io.op.bits.in_eew === 3.U) {
             for (i <- 0 until dLen/64) {
