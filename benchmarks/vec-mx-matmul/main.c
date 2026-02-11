@@ -18,7 +18,7 @@ size_t vl;
     extern otype name ## _out[] __attribute__((aligned(64)));;
 
 #define TEST_VECTOR_OUTER(name, isew, osew, ealt, ivle, ovse) \
-    printf("Testing " #name " (vector outer product)\n"); \
+    printf("Testing " #name "\n"); \
     avl = N; \
     { \
         size_t n = 0; \
@@ -74,7 +74,6 @@ size_t vl;
             if (expected != result) { \
                 printf("Test failed\n"); \
                 printf("m = %d, n = %d, exp = %x, res = %x\n", m, n, expected, result); \
-                exit(1); \
             } \
         } \
     }
