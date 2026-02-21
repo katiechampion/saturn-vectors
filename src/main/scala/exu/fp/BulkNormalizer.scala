@@ -2,17 +2,20 @@ package saturn.exu
 
 import chisel3._
 import chisel3.util._
-/*
+import freechips.rocketchip.tile._
+import org.chipsalliance.cde.config._
+import hardfloat._
+
 object maxExp {
-  def apply(in: Vec[SInt], n: Int): SInt = {
+  def apply(in: IndexedSeq[SInt], n: Int): SInt = {
     if (n == 1) {
       in(0)
     }
     else {
       val half = n / 2
-      val l = maxExp(in(n - 1, half), n - half)
-      val r = maxExp(in(half - 1, 0), half)
-      if (l >= r) l else r
+      val l = maxExp(in.slice(half, n - 1), n - half)
+      val r = maxExp(in.slice(0, half - 1), half)
+      Mux(l >= r, l, r)
     }
   }
 }
@@ -37,8 +40,8 @@ class BulkNormalizerMultiplier(input_type: FType, n: Int)(implicit p: Parameters
     val out = Output(new BulkNormalizerIntermediates(input_type, n))
   })
 
-  val rec_a = in_a.map { e => rawFloatFromFN(input_type.exp, input_type.sig, e) }
-  val rec_b = in_b.map { e => rawFloatFromFN(input_type.exp, input_type.sig, e) }
+  val rec_a = io.in_a.map { e => rawFloatFromFN(input_type.exp, input_type.sig, e) }
+  val rec_b = io.in_b.map { e => rawFloatFromFN(input_type.exp, input_type.sig, e) }
 
   val prod_invalid_nan = Wire(Vec(n, Bool()))
   val prod_nan = Wire(Vec(n, Bool()))
@@ -61,22 +64,22 @@ class BulkNormalizerMultiplier(input_type: FType, n: Int)(implicit p: Parameters
     // TODO: sigNan might matter
 
     io.out.prod_signs(i) := sign
-    io.out.prod_exps(i) := a.sExp +& b.sExp
+    io.out.prod_exps(i) := a.sExp +& b.sExp - (1 << input_type.exp).S
     io.out.prod_sigs(i) := a.sig * b.sig
   }
 
-  val any_pos_inf = prod_pos_inf.asBools.orR
-  val any_neg_inf = prod_neg_inf.asBools.orR
+  val any_pos_inf = prod_pos_inf.asUInt.orR
+  val any_neg_inf = prod_neg_inf.asUInt.orR
 
-  io.out.any_nan := prod_nan.asBools.orR
-  io.out.any_inf := prod_inf.asBools.orR
-  io.out.any_pos_inf := prod_pos_inf.asBools.orR
-  io.out.any_neg_inf := prod_neg_inf.asBools.orR
+  io.out.any_nan := prod_nan.asUInt.orR
+  io.out.any_inf := prod_inf.asUInt.orR
+  io.out.any_pos_inf := prod_pos_inf.asUInt.orR
+  io.out.any_neg_inf := prod_neg_inf.asUInt.orR
 }
 
-class BulkNormalizerAccumulator(input_type: FType, acc_type: FType, n_elems: Int, accumulate: Bool)(implicit p: Parameters) extends Module {
+class BulkNormalizerAccumulator(input_type: FType, acc_type: FType, n_elems: Int, accumulate: Boolean)(implicit p: Parameters) extends Module {
   val n = n_elems + (if (accumulate) 1 else 0)
-  val p = input_type.sig - 1
+  val p_ = input_type.sig - 1
   val q = acc_type.sig - 1
   val g = log2Ceil(n)
 
@@ -95,13 +98,13 @@ class BulkNormalizerAccumulator(input_type: FType, acc_type: FType, n_elems: Int
   io.acc_out.isNaN := invalid || io.inter.any_nan || (accumulate.B && io.acc_in.isNaN)
   io.acc_out.isInf := io.inter.any_inf || (accumulate.B && io.acc_in.isInf)
 
-  val signs = io.inter.prod_signs ++ (if (accumulate) acc_in.sign else Nil)
-  val exps = io.inter.prod_exps ++ (if (accumulate) acc_in.sExp else Nil)
-  val sigs = io.inter.prod_sigs ++ (if (accumulate) acc_in.sig else Nil)
+  val signs = io.inter.prod_signs ++ (if (accumulate) Some(io.acc_in.sign) else Nil)
+  val exps = io.inter.prod_exps ++ (if (accumulate) Some(io.acc_in.sExp) else Nil)
+  val sigs = io.inter.prod_sigs ++ (if (accumulate) Some(io.acc_in.sig) else Nil)
 
   val max_exp = maxExp(exps, n)
 
-  val pad_right = q + 1 + g - (2 * p)
+  val pad_right = q + 1 + g - (2 * p_)
 
   val aligned_sigs = Wire(Vec(n, SInt(((input_type.sig + 1) * 2 + 1).W)))
 
@@ -111,9 +114,9 @@ class BulkNormalizerAccumulator(input_type: FType, acc_type: FType, n_elems: Int
     val shift = (max_exp - exp).asUInt
     
     val aligned_sig_unrounded = (sig << pad_right) >> shift
-    val discard_mask = ((1 << (2 * p)) - 1).U >> ((q + 1 + g).U - shift)
+    val discard_mask = ((1 << (2 * p_)) - 1).U >> ((q + 1 + g).U - shift)
     val discard_bits = sig & discard_mask
-    val jam = (if (shift >= (q + 1 + g)) sig else discard_bits) =/= 0.U
+    val jam = Mux(shift >= (q + 1 + g).U, sig, discard_bits) =/= 0.U
     val aligned_sig = (aligned_sig_unrounded | Mux(jam, 1.U, 0.U)).asSInt
 
     aligned_sigs(i) := Mux(signs(i), -aligned_sig, aligned_sig)
@@ -122,4 +125,3 @@ class BulkNormalizerAccumulator(input_type: FType, acc_type: FType, n_elems: Int
   val acc = aligned_sigs.foldLeft(0.S) { (x, y) => x + y }
   
 }
-*/

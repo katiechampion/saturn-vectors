@@ -55,6 +55,9 @@ object VectorParams {
   )
 
   def bdotParams = genParams.copy(
+    vdqEntries = 16,
+    vliqEntries = 16,
+    vsiqEntries = 32,
     vrfBanking = 8,
     useBDot = true
   )

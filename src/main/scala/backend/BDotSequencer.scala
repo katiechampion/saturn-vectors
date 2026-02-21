@@ -65,7 +65,7 @@ class BDotSequencer(pipe_depth: Int, acc_delay: Int)(implicit p: Parameters) ext
   val renvm = Reg(Bool())
   val vl = Reg(UInt((1+log2Ceil(maxVLMax)).W))
 
-  val eg_idx_max = (vLen / dLen).U << emul
+  val eg_idx_max = Mux(set_acc && set_acc_zero, 1.U, (vLen / dLen).U << emul)
 
   val next_eg_idx = eg_idx +& 1.U
   val elements_width = (dLen / 8).U >> in_eew
