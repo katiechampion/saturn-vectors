@@ -49,14 +49,12 @@ bmarks = \
 	vec-square-root-approx \
 	vec-transpose-load \
 	vec-transpose-store \
-<<<<<<< HEAD
-	opu-sq-gemm \
-	opu-m2-gemm \
-	vec-optest
-=======
 	vec-fp8 \
 	vec-mx-binary \
 	vec-mx-unary \
+	vec-mx-matmul \
+	vec-bdot \
+	opu-mx-matmul \
 	opu-fp8-gemm \
 	opu-gemm \
 	opu-m4-gemm \
@@ -67,7 +65,6 @@ bmarks = \
 	opu-fused-lm2-gemm-transpose \
 	opu-lm2-gemm \
 	opu-lm2-memcopy 
->>>>>>> bf16fp8/saturn-fp8b16-mx
 
 cpp_bmarks = \
 	vec-tasks \

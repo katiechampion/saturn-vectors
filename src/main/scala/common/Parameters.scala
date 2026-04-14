@@ -54,12 +54,22 @@ object VectorParams {
     vsiqEntries = 6
   )
 
-  def bdotParams = genParams.copy(
+  // mxParams:
+  // For a vector unit that can handle BF16 and OFP8
+  def mxParams = genParams.copy(
+    useMxFPFMA = true,
+    useMxConversion = true,
+  )
+
+  def bdotParams = mxParams.copy(
+    vdqEntries = 16,
+    vliqEntries = 16,
+    vsiqEntries = 32,
     vrfBanking = 8,
     useBDot = true
   )
 
-  def opuParams = genParams.copy(
+  def opuParams = mxParams.copy(
     vliqEntries = 8, // beef this up since OPU tends to be used with LMUL=1
     vlissqEntries = 6,
     useOpu = true,
@@ -169,7 +179,7 @@ object VXFunctionalUnitGroups {
     SharedScalarFPFMAFactory(pipeDepth)
   )
   def fpFMA(pipeDepth: Int, elementwiseFP64: Boolean, segmentedFPFMA: Boolean, useMxFPFMA: Boolean) = Seq(
-    SIMDFPFMAFactory(pipeDepth, elementwiseFP64, segmentedFPFMA, useMxFPFMA)
+    SIMDFPFMAFactory(pipeDepth, useMxFPFMA, elementwiseFP64, segmentedFPFMA)
   )
   def fpMisc(useMxConversion: Boolean) = Seq(
     FPDivSqrtFactory,
@@ -177,10 +187,11 @@ object VXFunctionalUnitGroups {
     FPConvFactory(useMxConversion)
   )
 
-  def allFPFUs(fmaPipeDepth: Int, useScalarFPFMA: Boolean, elementwiseFP64: Boolean, segmentedFPFMA: Boolean, useMxFPFMA: Boolean, useMxConversion: Boolean) = (
+  def allFPFUs(fmaPipeDepth: Int, useScalarFPFMA: Boolean, elementwiseFP64: Boolean, segmentedFPFMA: Boolean, useMxFPFMA: Boolean, useMxConversion: Boolean) = {
+    require(!(useScalarFPFMA && useMxFPFMA))
     (if (useScalarFPFMA) sharedFPFMA(fmaPipeDepth) else fpFMA(fmaPipeDepth, elementwiseFP64, segmentedFPFMA, useMxFPFMA)) ++
     fpMisc(useMxConversion)
-  )
+  }
 }
 
 sealed trait VectorIssueStructure {
@@ -389,16 +400,17 @@ case class VectorParams(
     saturn.insns.OPMVINBCAST.VX,
     saturn.insns.OPMVOUT.VX)
   def bdotInsns = Seq(
-    saturn.insns.DOTSET.VV,
-    saturn.insns.DOTSETZERO.VV,
-    saturn.insns.DOTSETBC.VV,
-    saturn.insns.DOTSETZEROBC.VV,
-    saturn.insns.DOTWB.VV,
     saturn.insns.QLDOTUA.VV,
     saturn.insns.QLDOTSA.VV,
     saturn.insns.QBDOTUA.VV,
     saturn.insns.QBDOTSA.VV)
-  def supported_ex_insns = issStructure.generate(this).map(_.insns).flatten ++ (if (useOpu) opuInsns else Nil) ++ (if (useBDot) bdotInsns else Nil)
+  def bdotWBInsns = Seq(
+    saturn.insns.DOTSET.VV,
+    saturn.insns.DOTSETZERO.VV,
+    saturn.insns.DOTSETBC.VV,
+    saturn.insns.DOTSETZEROBC.VV,
+    saturn.insns.DOTWB.VV)
+  def supported_ex_insns = issStructure.generate(this).map(_.insns).flatten ++ (if (useOpu) opuInsns else Nil) ++ (if (useBDot) bdotInsns ++ bdotWBInsns else Nil)
 
   def vExts = 
     (if (useMxConversion) Seq("zvfofp8min", "zfbfmin", "zvfbfmin", "zvfbfa") else Seq()) ++
@@ -439,7 +451,7 @@ trait HasVectorParams extends HasVectorConsts { this: HasCoreParameters =>
   def vrfBankBits = log2Ceil(vParams.vrfBanking)
   def lsiqIdBits = log2Ceil(vParams.vliqEntries.max(vParams.vsiqEntries))
   val debugIdSz = 16
-  def nRelease = vParams.issStructure.generate(vParams).map(_.seqs.size).reduce(_+_) + 2 + (if (useOpu) 1 else 0) + (if (useBDot) 1 else 0) // load/stores/opu
+  def nRelease = vParams.issStructure.generate(vParams).map(_.seqs.size).reduce(_+_) + 2 + (if (useOpu) 1 else 0) + (if (useBDot) 2 else 0) // load/stores/opu
 
   def getEgId(vreg: UInt, eidx: UInt, eew: UInt, bitwise: Bool): UInt = {
     val base = vreg << log2Ceil(egsPerVReg)
